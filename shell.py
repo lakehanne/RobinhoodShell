@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import time
 import cmd, json, re, math
 import pprint
 from Robinhood import Robinhood
@@ -107,75 +108,77 @@ class RobinhoodShell(cmd.Cmd):
     # ----- basic commands -----
     def do_l(self, arg):
         'Lists current portfolio'
-        t = Terminal()
-        portfolio = self.trader.portfolios()
-        if portfolio['extended_hours_equity']:
-            equity =  float(portfolio['extended_hours_equity'])
-        else:
-            equity =  float(portfolio['equity'])
+        while True:
+            t = Terminal()
+            portfolio = self.trader.portfolios()
+            if portfolio['extended_hours_equity']:
+                equity =  float(portfolio['extended_hours_equity'])
+            else:
+                equity =  float(portfolio['equity'])
 
-        eq = '%.2f' % equity
-        previous_close = float(portfolio['adjusted_equity_previous_close'])
-        change = equity - previous_close
-        change_pct =  '%.2f' % (change/previous_close * 100.0)
+            eq = '%.2f' % equity
+            previous_close = float(portfolio['adjusted_equity_previous_close'])
+            change = equity - previous_close
+            change_pct =  '%.2f' % (change/previous_close * 100.0)
 
-        # format
-        change = f"{change:.2f}"
+            # format
+            change = f"{change:.2f}"
 
-        # colorize
-        change_pct = color_data(change_pct)
-        change = color_data(change)
+            # colorize
+            change_pct = color_data(change_pct)
+            change = color_data(change)
 
-        account_details = self.trader.get_account()
-        if 'margin_balances' in account_details:
-            buying_power = account_details['margin_balances']['unallocated_margin_cash']
+            account_details = self.trader.get_account()
+            if 'margin_balances' in account_details:
+                buying_power = account_details['margin_balances']['unallocated_margin_cash']
 
-        account_table = SingleTable([['Portfolio Value','Change','Buying Power'],[eq, change+' ('+change_pct+'%)', buying_power]],'Account')
-        print((account_table.table))
+            account_table = SingleTable([['Portfolio Value','Change','Buying Power'],[eq, change+' ('+change_pct+'%)', buying_power]],'Account')
+            print((account_table.table))
 
-        # Load Stocks
-        positions = self.trader.securities_owned()
-        instruments = [position['instrument'] for position in positions['results']]
-        symbols = [self.get_symbol(position['instrument']) for position in positions['results']]
+            # Load Stocks
+            positions = self.trader.securities_owned()
+            instruments = [position['instrument'] for position in positions['results']]
+            symbols = [self.get_symbol(position['instrument']) for position in positions['results']]
 
-        market_data = self.trader.get_stock_marketdata(instruments)
+            market_data = self.trader.get_stock_marketdata(instruments)
 
-        table_data = []
-        table_data.append(["Symbol", "Last", "Shares", "Equity", "Avg Cost", "Return" , "Day", "EquityChange", "Day %"])
+            table_data = []
+            table_data.append(["Symbol", "Last", "Shares", "Equity", "Avg Cost", "Return" , "Day", "EquityChange", "Day %"])
 
-        i = 0
-        for position in positions['results']:
-            quantity = int(float(position['quantity']))
-            symbol = self.get_symbol(position['instrument'])
-            price = market_data[i]['last_trade_price']
-            total_equity = float(price) * quantity
-            buy_price = float(position['average_buy_price'])
-            p_l = f"{total_equity - (buy_price * quantity):.2f}"
-            total_equity = f"{total_equity:.2f}"
-            buy_price = f"{buy_price:.2f}"
-            day_change = f"{float(market_data[i]['last_trade_price']) - float(market_data[i]['previous_close']):.2f}"
-            day_change_q_val = f"{float(quantity) * float(day_change):.2f}"
-            day_change_pct = f"{float(day_change) / float(market_data[i]['previous_close']) * 100:.2f}"
-            price = f"{float(price):.2f}"
+            i = 0
+            for position in positions['results']:
+                quantity = int(float(position['quantity']))
+                symbol = self.get_symbol(position['instrument'])
+                price = market_data[i]['last_trade_price']
+                total_equity = float(price) * quantity
+                buy_price = float(position['average_buy_price'])
+                p_l = f"{total_equity - (buy_price * quantity):.2f}"
+                total_equity = f"{total_equity:.2f}"
+                buy_price = f"{buy_price:.2f}"
+                day_change = f"{float(market_data[i]['last_trade_price']) - float(market_data[i]['previous_close']):.2f}"
+                day_change_q_val = f"{float(quantity) * float(day_change):.2f}"
+                day_change_pct = f"{float(day_change) / float(market_data[i]['previous_close']) * 100:.2f}"
+                price = f"{float(price):.2f}"
 
-            table_data.append([
-                symbol,
-                price,
-                quantity,
-                total_equity,
-                buy_price,
-                color_data(p_l),
-                color_data(day_change),
-                color_data(day_change_q_val),
-                color_data(day_change_pct)
-                ])
-            i += 1
+                table_data.append([
+                    symbol,
+                    price,
+                    quantity,
+                    total_equity,
+                    buy_price,
+                    color_data(p_l),
+                    color_data(day_change),
+                    color_data(day_change_q_val),
+                    color_data(day_change_pct)
+                    ])
+                i += 1
 
-        table = SingleTable(table_data,'Portfolio')
-        table.inner_row_border = True
-        table.justify_columns = {0: 'center' }
+            table = SingleTable(table_data,'Portfolio')
+            table.inner_row_border = True
+            table.justify_columns = {0: 'center' }
 
-        print((table.table))
+            print((table.table))
+            time.sleep(10)
 
     def do_lo(self, arg):
         'Lists current options portfolio'
